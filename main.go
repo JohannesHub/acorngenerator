@@ -92,18 +92,7 @@ func generate(sourceTypeName string, structType *types.Struct, sourceInterfaceNa
 }
 
 func generateSetupStatements(injectedFields []*types.Var, sourceInterfaceName string) []Code {
-	var setupStatements = make([]Code, 0)
-	setupStatements = append(setupStatements, Var().Err().Error())
-	errorHandlingStatement := If(Err().Op("!=").Nil()).Block(Return(Err()))
-	for _, field := range injectedFields {
-		constructedType, err := constructType(field)
-		failErr(err)
-
-		setupAfterStatement := Err().Op("=").Id("registry.SetupAfter").Call(Id("s." + constructedType.typeName).
-			Assert(Qual("github.com/StephanHCB/go-autumn-acorn-registry/api", "Acorn")))
-		setupStatements = append(setupStatements, setupAfterStatement)
-		setupStatements = append(setupStatements, errorHandlingStatement)
-	}
+	setupStatements := generateInjectedFieldsSetup(injectedFields)
 	loggingStatement := Id("ctx").Op(":=").
 		Qual("github.com/StephanHCB/go-autumn-logging-zerolog", "AddLoggerToCtx").
 		Call(Qual("context", "Background").Call()).Line().
@@ -116,6 +105,25 @@ func generateSetupStatements(injectedFields []*types.Var, sourceInterfaceName st
 		Dot("Info").Call().Dot("Print").Call(Id("\"successfully set up " + strings.ToLower(sourceInterfaceName) + " service\""))
 	setupStatements = append(setupStatements, loggingStatement)
 	return append(setupStatements, Return(Nil()))
+}
+
+func generateInjectedFieldsSetup(injectedFields []*types.Var) []Code {
+	var setupStatements = make([]Code, 0)
+	if len(injectedFields) == 0 {
+		return setupStatements
+	}
+	setupStatements = append(setupStatements, Var().Err().Error())
+	errorHandlingStatement := If(Err().Op("!=").Nil()).Block(Return(Err()))
+	for _, field := range injectedFields {
+		constructedType, err := constructType(field)
+		failErr(err)
+
+		setupAfterStatement := Err().Op("=").Id("registry.SetupAfter").Call(Id("s." + constructedType.typeName).
+			Assert(Qual("github.com/StephanHCB/go-autumn-acorn-registry/api", "Acorn")))
+		setupStatements = append(setupStatements, setupAfterStatement)
+		setupStatements = append(setupStatements, errorHandlingStatement)
+	}
+	return setupStatements
 }
 
 func generateRegistryStatements(injectedFields []*types.Var) ([]Code, error) {
