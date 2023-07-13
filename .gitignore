@@ -1,0 +1,6 @@
+.idea
+main
+main.exe
+*.iml
+test/output/*.json
+test/**/pact.log
